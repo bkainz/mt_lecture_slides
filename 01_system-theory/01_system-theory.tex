@@ -18,6 +18,7 @@
 
 
 
+
 \begin{frame}[c]{Medical Imaging}
     \framesubtitle{X-ray, CT, MR, Ultra Sound, Angio, PET, SPECT}
     \centering{}
@@ -1506,6 +1507,27 @@ Using these two equations, the spatial domain image is first transformed into an
 %\end{frame}
 
 
+\begin{frame}
+    \frametitle{2D Convolution}
+    \begin{itemize}
+    \item in nD, \emph{e.g.}, 2D images, convolution is most often used for filter operations, to
+    \begin{itemize}
+        \item extract selected features
+        \item smooth/blur f(t) 
+        \item learn task-specific features, e.g., in convolutional neural networks
+    \end{itemize}
+    \item \href{https://upload.wikimedia.org/wikipedia/commons/1/19/2D_Convolution_Animation.gif}{\texttt{Animation}}
+    \item \href{https://github.com/vdumoulin/conv_arithmetic/blob/master/gif/full_padding_no_strides.gif}{\texttt{Animation2}}
+    \end{itemize}
+    \begin{figure}
+        \includegraphics[width=.2\linewidth]{images/convolution-0.png}
+        %\caption{source: https://github.com/vdumoulin/conv_arithmetic}
+    \end{figure}
+    \scriptsize Source: \href{https://github.com/vdumoulin/conv_arithmetic}{github.com/vdumoulin/conv\_arithmetic} $\quad$
+\end{frame}
+
+
+
 
 \begin{frame}
     \frametitle{Fundamental Theorem of Linear Systems}
@@ -1554,12 +1576,17 @@ Using these two equations, the spatial domain image is first transformed into an
 
 \end{frame}
 
-\begin{frame}[t]{Impuls response}
+\begin{frame}%[t]{Impuls response}
+    \frametitle{Impuls response}
     \begin{itemize}
         \item The Dirac puls can be approximated by a series of short rectangle pulses
         \item This means we can estimate the puls response of a physical system by sending in short rectangle pulses
     \end{itemize}
-
+    \begin{figure}
+         \includegraphics[width=.3\linewidth]{images/2DDirac.jpg}
+        % \caption{2D lens calibration pattern, source: lensrentals.com}
+    \end{figure}
+    \scriptsize 2D lens calibration pattern, source: lensrentals.com $\quad$
 \end{frame}
 
 
