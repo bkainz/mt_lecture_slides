@@ -80,47 +80,47 @@ minimum width=0.75cm, inner sep=0, text depth=0pt}]
     \end{center}
 \end{frame}
 
-%\begin{frame}{Image Enhancement}
-%\begin{block}{Reasons for changing contrast}
-%\begin{itemize}
-%\item Images with more than $\SI{8}{\bit}$ per channel
-%\item Intensities do not span over all possible values
-%\item \ldots
-%\end{itemize}
-%\end{block}
-%\begin{block}{Point-wise operations}
-%Enhancing image $f(x,y)$ by applying a function $g$ on all pixels
-%\begin{equation*}
-%f'(x,y) = g(f(x,y)).
-%\end{equation*}
-%\end{block}
-%\end{frame}
+\begin{frame}{Image Enhancement}
+\begin{block}{Reasons for changing contrast}
+\begin{itemize}
+\item Images with more than $\SI{8}{\bit}$ per channel
+\item Intensities do not span over all possible values
+\item \ldots
+\end{itemize}
+\end{block}
+\begin{block}{Point-wise operations}
+Enhancing image $f(x,y)$ by applying a function $g$ on all pixels
+\begin{equation*}
+f'(x,y) = g(f(x,y)).
+\end{equation*}
+\end{block}
+\end{frame}
 
-%\begin{frame}{Gamma Correction}
-%\begin{columns}[T, onlytextwidth]
-%\begin{column}{0.4\textwidth}
-%Adapted to how the human eye perceives brightness
-%\bigskip
+\begin{frame}{Gamma Correction}
+\begin{columns}[T, onlytextwidth]
+\begin{column}{0.4\textwidth}
+Adapted to how the human eye perceives brightness
+\bigskip
 
-%\begin{enumerate}
-%\item Scale intensities to $\lbrack0,1\rbrack$
-%\item Apply $g(x) = x^\gamma$
-%\item Scale back to original intensity range
-%\end{enumerate}
-%\end{column}
-%\begin{column}{0.6\textwidth}
-%\begin{tikzpicture}
-%\begin{axis}[xmin=0, xmax=1, ymin=0, ymax=1, width=\textwidth,
-%xlabel=$x$, ylabel=$g(x)$]
-%\addplot[thick, red, domain=0:1] {x^2.2};
-%\node at (axis cs:0.2, 0.7) {\color{blue}$\gamma=\frac{1}{2.2}$};
-%\addplot[thick, blue, domain=0:1, samples=100] {x^0.4545};
-%\node at (axis cs:0.7, 0.2) {\color{red}$\gamma=2.2$};
-%\end{axis}
-%\end{tikzpicture}
-%\end{column}
-%\end{columns}
-%\end{frame}
+\begin{enumerate}
+\item Scale intensities to $\lbrack0,1\rbrack$
+\item Apply $g(x) = x^\gamma$
+\item Scale back to original intensity range
+\end{enumerate}
+\end{column}
+\begin{column}{0.6\textwidth}
+\begin{tikzpicture}
+\begin{axis}[xmin=0, xmax=1, ymin=0, ymax=1, width=\textwidth,
+xlabel=$x$, ylabel=$g(x)$]
+\addplot[thick, red, domain=0:1] {x^2.2};
+\node at (axis cs:0.2, 0.7) {\color{blue}$\gamma=\frac{1}{2.2}$};
+\addplot[thick, blue, domain=0:1, samples=100] {x^0.4545};
+\node at (axis cs:0.7, 0.2) {\color{red}$\gamma=2.2$};
+\end{axis}
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\end{frame}
 
 \begin{frame}[c]{Gamma Correction -- Example}
     \begin{columns}[onlytextwidth]
@@ -289,6 +289,14 @@ minimum width=0.75cm, inner sep=0, text depth=0pt}]
         \end{column}
     \end{columns}
 \end{frame}
+
+
+\begin{frame}
+    \frametitle{Demo}
+    Demo in ImageJ \url{https://imagej.nih.gov/ij/} and MITK \url{mitk.org}
+    \bigskip
+\end{frame}
+
 
 % TODO: change to calculate convolution not correlation
 \begin{frame}
@@ -494,12 +502,12 @@ minimum width=0.75cm, inner sep=0, text depth=0pt}]
 
 
 
-%\begin{frame}
-%	\frametitle{Derivative Filters and Noise}
-%	\includegraphics{img/lenadetailnoise}
-%	 \includegraphics{img/nonsobel}
-%	 \includegraphics{img/withsobel}
-%\end{frame}
+\begin{frame}
+	\frametitle{Derivative Filters and Noise}
+	\includegraphics{img/lenadetailnoise}
+	 \includegraphics{img/nonsobel}
+	 \includegraphics{img/withsobel}
+\end{frame}
 
 %\begin{frame}
 %  \frametitle{Derivatives of Images}
@@ -1217,6 +1225,75 @@ minimum width=0.75cm, inner sep=0, text depth=0pt}]
 %  \end{equation*}
 %  \end{block}
 %\end{frame}
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \begin{center}
+    \includegraphics[height=6cm]{img/AI-Medical-600px.png}
+    {\tiny Image credit Ben Glocker}
+    \end{center}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \includegraphics[height=6cm]{img/woCNN.png}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \includegraphics[height=6cm]{img/wCNN.png}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \begin{itemize}
+        \item generate a lot of samples (segmentations, calssification, etc.)
+        \item use a learning framework (e.g. \url{https://github.com/MIC-DKFZ/nnUNet} for segmentation, Resnet for classification \url{https://pytorch.org/hub/pytorch_vision_resnet/})
+        \item keep a certain split for validaiton and testing (e.g. 80:10:10), do cross-validation
+        \item get good compute infrastructure (GPUs) train and test.
+    \end{itemize}
+    \begin{center}
+ \includegraphics[height=4cm]{img/u-net-architecture.png}
+{\tiny Image credit O. Ronneberger et al. U-net: Convolutional networks for biomedical image segmentation}
+ \end{center}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \includegraphics{img/convolution.png}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \includegraphics[height=6cm]{img/activation.png}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \begin{itemize}
+        \item \href{https://www.youtube.com/watch?v=81AvQQnpG4Q}{\texttt{Example 1}}
+        \end{itemize}
+        \begin{center}
+    \includegraphics[height=3cm]{img/brats-tumor-subregions.jpg}
+    \includegraphics[height=3cm]{img/cardiac.png}
+     \end{center}
+\end{frame}
+
+
+\begin{frame}
+    \frametitle{Deep Learning}
+    \begin{itemize}
+        \item \href{https://www.youtube.com/watch?v=4V8V0jF0zFc}{\texttt{Example 2}}
+        \end{itemize}
+        \begin{center}
+    \includegraphics[height=4cm]{img/ultrasound.png}
+    \includegraphics[height=4cm]{img/fetal.png}
+     \end{center}
+\end{frame}
+
+
 
 \section{Further Readings}%
 \label{sec:further_readings}
