@@ -1227,71 +1227,482 @@ xlabel=$x$, ylabel=$g(x)$]
 %  \end{block}
 %\end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
+\section{From Classical Filters to Learned Representations}
+
+\begin{frame}{From Hand-crafted to Learned Features}
+    Classical pipelines combine a fixed filter bank with a shallow classifier. Every operator is designed by hand: Sobel kernels, Gaussian smoothing, thresholds, morphological elements.
+
+    Representation learning replaces this pipeline with a stack of differentiable operations whose parameters are optimised on data.
     \begin{center}
-    \includegraphics[height=6cm]{img/AI-Medical-600px.png}
-    {\tiny Image credit Ben Glocker}
+        \begin{tikzpicture}[node distance=0.6cm, every node/.style={font=\footnotesize}]
+            \node[faunode, minimum width=1.5cm] (im1) {Image};
+            \node[faunode, right=of im1, minimum width=1.8cm] (f1) {Hand-crafted\\ features};
+            \node[faunode, right=of f1, minimum width=1.8cm] (c1) {Classifier};
+            \node[faunode, right=of c1, minimum width=1.5cm] (y1) {Label};
+            \draw[fauarrow] (im1) -- (f1);
+            \draw[fauarrow] (f1) -- (c1);
+            \draw[fauarrow] (c1) -- (y1);
+
+            \node[faunode, below=0.9cm of im1, minimum width=1.5cm] (im2) {Image};
+            \node[faunode, right=of im2, minimum width=3.6cm, fill=faublue!20] (nn) {Learned representation\\ (convolutions, non-linearities, pooling)};
+            \node[faunode, right=of nn, minimum width=1.5cm] (y2) {Label};
+            \draw[fauarrow] (im2) -- (nn);
+            \draw[fauarrow] (nn) -- (y2);
+        \end{tikzpicture}
+    \end{center}
+    The network jointly learns a feature extractor and a decision function from paired samples $(x_i, y_i)$, which in medical imaging are voxels, images, or volumes with annotations.
+\end{frame}
+
+\begin{frame}{Why Deep Learning for Medical Image Analysis}
+    Medical images contain high intra-class variability (anatomy, pathology, acquisition site, scanner vendor, field strength) and strong spatial correlations. Classical filters capture only a narrow family of patterns, while convolutional networks learn hierarchical descriptors adapted to the task and the modality.
+
+    Typical tasks addressed with deep learning include tissue and lesion segmentation, disease classification, landmark detection, registration, reconstruction from undersampled acquisitions, and synthesis across modalities. The empirical gains are most pronounced when annotated data, compute, and well-designed evaluation are aligned.
+\end{frame}
+
+\begin{frame}{The Artificial Neuron}
+    A single unit computes an affine transform followed by a non-linearity:
+    \begin{equation*}
+        a = \sigma\left(\sum_{i=1}^{d} w_i x_i + b\right) = \sigma(\mathbf{w}^\top \mathbf{x} + b)\,.
+    \end{equation*}
+    \begin{center}
+        \begin{tikzpicture}[>=latex, every node/.style={font=\footnotesize}]
+            \foreach \i/\lbl in {1/$x_1$,2/$x_2$,3/$x_3$,4/$x_4$}{
+                \node[draw, circle, minimum size=0.6cm] (x\i) at (0,{2-0.8*\i}) {\lbl};
+            }
+            \node[draw, circle, fill=faublue!20, minimum size=0.9cm] (n) at (3.5,-0.4) {$\Sigma,\sigma$};
+            \node[right=0.8cm of n] (out) {$a$};
+            \foreach \i/\w in {1/$w_1$,2/$w_2$,3/$w_3$,4/$w_4$}{
+                \draw[->] (x\i) -- node[above, sloped] {\w} (n);
+            }
+            \draw[->] (n) -- (out);
+            \node[below=0.2cm of n] {bias $b$};
+        \end{tikzpicture}
+    \end{center}
+    Stacking such units with learnable weights $\mathbf{W}^{(\ell)}$ and biases $\mathbf{b}^{(\ell)}$ produces a multi-layer perceptron (MLP). Depth makes it possible to approximate non-linear functions that no single layer can represent compactly.
+\end{frame}
+
+\begin{frame}{Activation Functions}
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.55\textwidth}
+            Non-linearities break the linearity of stacked affine maps. Common choices:
+            \begin{itemize}
+                \item Sigmoid $\sigma(z) = \tfrac{1}{1+e^{-z}}$: saturates, suffers from vanishing gradients.
+                \item Hyperbolic tangent $\tanh(z)$: zero-centred but still saturating.
+                \item Rectified linear unit $\mathrm{ReLU}(z) = \max(0, z)$: sparse, fast, dominant in vision.
+                \item Leaky ReLU and GELU: address dead units and smooth the gradient at the origin.
+                \item Softmax: normalises the output of a classification head into a categorical distribution.
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.45\textwidth}
+            \begin{tikzpicture}
+                \begin{axis}[width=\textwidth, height=5cm, xmin=-4, xmax=4, ymin=-1.2, ymax=1.5,
+                    legend style={font=\tiny, at={(0.02,0.98)}, anchor=north west}, axis lines=middle,
+                    xlabel=$z$, ylabel={$\sigma(z)$}]
+                    \addplot[thick, faublue, domain=-4:4, samples=100] {1/(1+exp(-x))};
+                    \addlegendentry{sigmoid}
+                    \addplot[thick, red, domain=-4:4, samples=100] {tanh(x)};
+                    \addlegendentry{tanh}
+                    \addplot[thick, green!50!black, domain=-4:4, samples=100] {max(0,x)/4};
+                    \addlegendentry{ReLU (scaled)}
+                \end{axis}
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Training Objective and Loss Functions}
+    For a dataset $\{(\mathbf{x}_i, \mathbf{y}_i)\}_{i=1}^N$ and a network $f_\theta$ we minimise the empirical risk
+    \begin{equation*}
+        \mathcal{L}(\theta) = \frac{1}{N} \sum_{i=1}^N \ell\bigl(f_\theta(\mathbf{x}_i), \mathbf{y}_i\bigr) + \lambda\, \Omega(\theta)\,.
+    \end{equation*}
+    Common losses for imaging tasks are cross-entropy for classification, mean squared error and $\ell_1$ for regression and reconstruction, and Dice or combined Dice plus cross-entropy for segmentation. The regulariser $\Omega$ typically includes weight decay and implicit terms such as dropout, batch normalisation, or augmentation.
+\end{frame}
+
+\begin{frame}{Gradient Descent and Backpropagation}
+    Parameters are updated by stochastic gradient descent
+    \begin{equation*}
+        \theta^{(t+1)} = \theta^{(t)} - \eta\, \nabla_\theta \mathcal{L}_{\mathcal{B}}(\theta^{(t)})\,,
+    \end{equation*}
+    where $\mathcal{B}$ is a mini-batch and $\eta$ is the learning rate. The gradient is computed by backpropagation, the application of the chain rule along the computational graph.
+    \begin{center}
+        \begin{tikzpicture}[>=latex, every node/.style={font=\footnotesize}]
+            \node[faunode, minimum width=1.2cm] (x) {$\mathbf{x}$};
+            \node[faunode, right=0.5cm of x, minimum width=1.2cm] (h1) {layer $1$};
+            \node[faunode, right=0.5cm of h1, minimum width=1.2cm] (h2) {layer $2$};
+            \node[faunode, right=0.5cm of h2, minimum width=1.2cm] (h3) {layer $L$};
+            \node[faunode, right=0.5cm of h3, minimum width=1.2cm] (loss) {$\ell$};
+            \draw[fauarrow] (x) -- (h1);
+            \draw[fauarrow] (h1) -- (h2);
+            \draw[fauarrow] (h2) -- node[above] {$\cdots$} (h3);
+            \draw[fauarrow] (h3) -- (loss);
+            \draw[->, red, thick] (loss.south) to[bend left=25] node[below, font=\tiny, red] {$\partial \ell / \partial \theta$} (x.south);
+        \end{tikzpicture}
+    \end{center}
+    In practice Adam or SGD with momentum, learning-rate schedules, and gradient clipping are used to stabilise optimisation on non-convex landscapes.
+\end{frame}
+
+\begin{frame}{From Fully Connected to Convolutional Layers}
+    A fully connected layer treats every pixel as an independent input, which wastes parameters and ignores locality. A convolutional layer shares a small kernel across spatial positions and preserves translation equivariance.
+    \begin{center}
+        \begin{tikzpicture}[every node/.style={font=\footnotesize}]
+            \matrix (input) [matrix of nodes, nodes={draw, minimum size=0.5cm, inner sep=0}, ampersand replacement=\&] {
+                |[fill=faublue!30]|0 \& |[fill=faublue!30]|1 \& |[fill=faublue!30]|1 \& 0 \& 0 \\
+                |[fill=faublue!30]|0 \& |[fill=faublue!30]|1 \& |[fill=faublue!30]|1 \& 0 \& 0 \\
+                |[fill=faublue!30]|0 \& |[fill=faublue!30]|0 \& |[fill=faublue!30]|1 \& 1 \& 0 \\
+                0 \& 0 \& 0 \& 1 \& 1 \\
+                0 \& 0 \& 0 \& 1 \& 1 \\
+            };
+            \node[below=0.1cm of input] {input $5{\times}5$};
+
+            \matrix (kernel) [right=0.7cm of input, matrix of nodes, nodes={draw, minimum size=0.5cm, inner sep=0, fill=red!20}, ampersand replacement=\&] {
+                1 \& 0 \& -1 \\
+                1 \& 0 \& -1 \\
+                1 \& 0 \& -1 \\
+            };
+            \node[below=0.1cm of kernel] {kernel $3{\times}3$};
+
+            \matrix (output) [right=0.7cm of kernel, matrix of nodes, nodes={draw, minimum size=0.5cm, inner sep=0, fill=green!20}, ampersand replacement=\&] {
+                1 \& 2 \& 2 \\
+                0 \& 1 \& 1 \\
+                0 \& 0 \& 0 \\
+            };
+            \node[below=0.1cm of output] {output $3{\times}3$};
+        \end{tikzpicture}
+    \end{center}
+    Each output channel is produced by a separate kernel; parameters scale with kernel size, not with image size, which is essential for high-resolution volumetric data.
+\end{frame}
+
+\begin{frame}{Convolution in the Network}
+    For input tensor $X \in \mathbb{R}^{C_\mathrm{in}\times H\times W}$ and kernel $K \in \mathbb{R}^{C_\mathrm{out}\times C_\mathrm{in}\times k\times k}$
+    \begin{equation*}
+        Y_{c,i,j} = \sum_{c'=1}^{C_\mathrm{in}} \sum_{u=-r}^{r} \sum_{v=-r}^{r} K_{c,c',u,v}\, X_{c',\,i+u,\,j+v} + b_c\,.
+    \end{equation*}
+    Volumetric data use the 3-D analogue with a fourth sum over slices. Parameters per layer equal $C_\mathrm{out}\, C_\mathrm{in}\, k^3$ for 3-D convolutions, which makes kernel design (usually $3{\times}3{\times}3$) a central decision in medical imaging architectures.
+\end{frame}
+
+\begin{frame}{Stride, Padding and Receptive Field}
+    \begin{columns}[T, onlytextwidth]
+        \begin{column}{0.55\textwidth}
+            The output spatial size for a kernel of size $k$, stride $s$, and padding $p$ is
+            \begin{equation*}
+                H_\mathrm{out} = \left\lfloor \frac{H_\mathrm{in} + 2p - k}{s}\right\rfloor + 1\,.
+            \end{equation*}
+            Padding preserves resolution, stride aggressively reduces it. The receptive field grows approximately linearly with depth for stride one and exponentially when combined with pooling. In segmentation networks a sufficiently large receptive field is essential to see whole organs, while keeping spatial resolution for precise boundaries.
+        \end{column}
+        \begin{column}{0.45\textwidth}
+            \begin{tikzpicture}[every node/.style={font=\tiny}]
+                \foreach \y in {0,...,4} \foreach \x in {0,...,4}
+                    \node[draw, minimum size=0.32cm, inner sep=0] at (0.32*\x, -0.32*\y) {};
+                \foreach \y in {1,2,3} \foreach \x in {1,2,3}
+                    \fill[faublue!40] (0.32*\x-0.16, -0.32*\y-0.16) rectangle (0.32*\x+0.16, -0.32*\y+0.16);
+                \foreach \y in {1,2,3} \foreach \x in {1,2,3}
+                    \node[draw, minimum size=0.32cm, inner sep=0] at (0.32*\x, -0.32*\y) {};
+                \node at (0.65, -2.1) {receptive field of a unit};
+            \end{tikzpicture}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Pooling and Downsampling}
+    Pooling aggregates a spatial neighbourhood into a single value, typically the maximum (max-pool) or the mean (average-pool). It reduces resolution, enlarges the receptive field, and enforces small-scale invariance.
+    \begin{center}
+        \begin{tikzpicture}[every node/.style={font=\footnotesize}]
+            \matrix (a) [matrix of nodes, nodes={draw, minimum size=0.55cm, inner sep=0}, ampersand replacement=\&] {
+                |[fill=faublue!10]|1 \& |[fill=faublue!10]|3 \& |[fill=faublue!30]|2 \& |[fill=faublue!30]|1 \\
+                |[fill=faublue!10]|0 \& |[fill=faublue!10]|5 \& |[fill=faublue!30]|4 \& |[fill=faublue!30]|2 \\
+                |[fill=red!15]|7 \& |[fill=red!15]|1 \& |[fill=green!15]|0 \& |[fill=green!15]|6 \\
+                |[fill=red!15]|2 \& |[fill=red!15]|3 \& |[fill=green!15]|8 \& |[fill=green!15]|1 \\
+            };
+            \node[right=0.5cm of a, font=\Large] {$\rightarrow$};
+            \matrix (b) [right=1cm of a, matrix of nodes, nodes={draw, minimum size=0.7cm, inner sep=0}, ampersand replacement=\&] {
+                |[fill=faublue!10]|5 \& |[fill=faublue!30]|4 \\
+                |[fill=red!15]|7 \& |[fill=green!15]|8 \\
+            };
+            \node[below=0.15cm of a] {input};
+            \node[below=0.15cm of b] {$2{\times}2$ max-pool, stride $2$};
+        \end{tikzpicture}
+    \end{center}
+    Modern architectures often replace pooling with strided convolutions, which fuse subsampling and learning into one operation.
+\end{frame}
+
+\begin{frame}{Batch Normalisation and Weight Initialisation}
+    Training deep networks is highly sensitive to the scale of activations. Batch normalisation whitens the pre-activation in each mini-batch,
+    \begin{equation*}
+        \hat{z} = \frac{z - \mu_\mathcal{B}}{\sqrt{\sigma^2_\mathcal{B} + \varepsilon}}\,,\qquad z' = \gamma\hat{z} + \beta\,,
+    \end{equation*}
+    where $\gamma, \beta$ are learned. Alternatives include layer, group, and instance normalisation; for small batch sizes, which are common in 3-D medical imaging, group normalisation is usually preferred. Initialisation schemes such as He or Xavier set the variance of weights so that the activation variance remains stable across depth.
+\end{frame}
+
+\begin{frame}{Regularisation and Generalisation}
+    Networks have millions of parameters and can memorise small datasets. Regularisation prevents overfitting:
+    \begin{itemize}
+        \item Weight decay, the $\ell_2$ penalty on parameters.
+        \item Dropout, which zeroes a fraction of activations at training time.
+        \item Early stopping based on validation loss.
+        \item Data augmentation, the main driver of generalisation in medical imaging.
+        \item Stochastic depth and label smoothing.
+    \end{itemize}
+    In imaging, augmentation includes elastic deformations, random rotations, intensity shifts, bias field simulation for magnetic resonance imaging (MRI), and acquisition-specific augmentations such as k-space subsampling or CT noise modelling.
+\end{frame}
+
+\begin{frame}{A Convolutional Classification Network}
+    \begin{center}
+        \begin{tikzpicture}[node distance=0.3cm, every node/.style={font=\scriptsize}]
+            \node[draw, fill=faublue!15, minimum width=0.9cm, minimum height=2.2cm] (i) {};
+            \node[below=0.05cm of i] {input};
+
+            \node[draw, fill=faublue!30, minimum width=0.7cm, minimum height=2.0cm, right=0.2cm of i] (c1) {};
+            \node[below=0.05cm of c1] {conv};
+
+            \node[draw, fill=faublue!40, minimum width=0.5cm, minimum height=1.6cm, right=0.2cm of c1] (p1) {};
+            \node[below=0.05cm of p1] {pool};
+
+            \node[draw, fill=faublue!50, minimum width=0.6cm, minimum height=1.4cm, right=0.2cm of p1] (c2) {};
+            \node[below=0.05cm of c2] {conv};
+
+            \node[draw, fill=faublue!60, minimum width=0.4cm, minimum height=1.0cm, right=0.2cm of c2] (p2) {};
+            \node[below=0.05cm of p2] {pool};
+
+            \node[draw, fill=faublue!70, minimum width=0.5cm, minimum height=0.8cm, right=0.2cm of p2] (c3) {};
+            \node[below=0.05cm of c3] {conv};
+
+            \node[draw, fill=red!40, minimum width=0.4cm, minimum height=0.5cm, right=0.2cm of c3] (gap) {};
+            \node[below=0.05cm of gap] {GAP};
+
+            \node[draw, fill=green!30, minimum width=0.4cm, minimum height=0.4cm, right=0.2cm of gap] (fc) {};
+            \node[below=0.05cm of fc] {FC};
+
+            \node[right=0.3cm of fc] (y) {$\hat{y}$};
+            \draw[->] (fc) -- (y);
+        \end{tikzpicture}
+    \end{center}
+    Spatial resolution decreases while channel depth increases, building a hierarchy of features from edges and textures to object parts. A global average pooling (GAP) compresses the final feature map into a vector, a fully connected (FC) layer produces logits, and a softmax yields class probabilities.
+\end{frame}
+
+\begin{frame}{Residual Connections}
+    Deeper stacks accumulate numerical error and suffer from vanishing gradients. He and colleagues introduced residual connections,
+    \begin{equation*}
+        \mathbf{h}_{\ell+1} = \mathbf{h}_\ell + \mathcal{F}(\mathbf{h}_\ell; \theta_\ell)\,,
+    \end{equation*}
+    which let gradients flow unimpeded through the skip path and stabilise very deep networks. ResNet and its variants (DenseNet, ResNeXt) are standard backbones for classification and for the encoder of segmentation networks.
+    \begin{center}
+        \begin{tikzpicture}[node distance=0.5cm, every node/.style={font=\footnotesize}]
+            \node[faunode, minimum width=1cm] (in) {$\mathbf{h}_\ell$};
+            \node[faunode, right=of in, minimum width=2.2cm] (f) {$\mathcal{F}(\cdot; \theta_\ell)$};
+            \node[circle, draw, right=of f] (plus) {$+$};
+            \node[faunode, right=of plus, minimum width=1.2cm] (out) {$\mathbf{h}_{\ell+1}$};
+            \draw[fauarrow] (in) -- (f);
+            \draw[fauarrow] (f) -- (plus);
+            \draw[fauarrow] (plus) -- (out);
+            \draw[fauarrow] (in) to[bend left=35] (plus);
+        \end{tikzpicture}
     \end{center}
 \end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
-    \includegraphics[height=6cm]{img/woCNN.png}
-\end{frame}
-
-\begin{frame}
-    \frametitle{Deep Learning}
-    \includegraphics[height=6cm]{img/wCNN.png}
-\end{frame}
-
-
-\begin{frame}
-    \frametitle{Deep Learning}
-    \begin{itemize}
-        \item generate a lot of samples (segmentations, calssification, etc.)
-        \item use a learning framework (e.g. \url{https://github.com/MIC-DKFZ/nnUNet} for segmentation, Resnet for classification \url{https://pytorch.org/hub/pytorch_vision_resnet/})
-        \item keep a certain split for validaiton and testing (e.g. 80:10:10), do cross-validation
-        \item get good compute infrastructure (GPUs) train and test.
-    \end{itemize}
+\begin{frame}{Dense Prediction and Segmentation}
+    Classification assigns one label per image; segmentation assigns one label per voxel. The output has the same spatial shape as the input, which rules out purely downsampling networks. Encoder-decoder architectures combine a contracting path that extracts semantic features with an expanding path that restores spatial resolution.
     \begin{center}
- \includegraphics[height=4cm]{img/u-net-architecture.png}
-{\tiny Image credit O. Ronneberger et al. U-net: Convolutional networks for biomedical image segmentation}
- \end{center}
+        \begin{tikzpicture}[>=latex, every node/.style={font=\footnotesize}]
+            \node[draw, fill=faublue!20, minimum width=0.6cm, minimum height=2.0cm] (e1) at (0,0) {};
+            \node[draw, fill=faublue!35, minimum width=0.6cm, minimum height=1.5cm] (e2) at (0.9,0) {};
+            \node[draw, fill=faublue!55, minimum width=0.6cm, minimum height=1.0cm] (e3) at (1.8,0) {};
+            \node[draw, fill=red!40, minimum width=0.6cm, minimum height=0.6cm] (b) at (2.7,0) {};
+            \node[draw, fill=green!40, minimum width=0.6cm, minimum height=1.0cm] (d3) at (3.6,0) {};
+            \node[draw, fill=green!30, minimum width=0.6cm, minimum height=1.5cm] (d2) at (4.5,0) {};
+            \node[draw, fill=green!20, minimum width=0.6cm, minimum height=2.0cm] (d1) at (5.4,0) {};
+            \node[below=0.1cm of e1] {in};
+            \node[below=0.1cm of b] {bottleneck};
+            \node[below=0.1cm of d1] {seg};
+            \foreach \a/\b in {e1/e2, e2/e3, e3/b, b/d3, d3/d2, d2/d1}
+                \draw[->] (\a.east) -- (\b.west);
+        \end{tikzpicture}
+    \end{center}
 \end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
-    \includegraphics{img/convolution.png}
+\begin{frame}{U-Net: Skip Connections for Segmentation}
+    U-Net concatenates encoder features with decoder features at matching resolutions, giving the decoder access to both high-level semantics and low-level boundaries.
+    \begin{center}
+        \begin{tikzpicture}[>=latex, every node/.style={font=\tiny}]
+            \node[draw, fill=faublue!20, minimum width=0.6cm, minimum height=2.0cm] (e1) at (0,0) {};
+            \node[draw, fill=faublue!35, minimum width=0.6cm, minimum height=1.5cm] (e2) at (1.0,-0.25) {};
+            \node[draw, fill=faublue!55, minimum width=0.6cm, minimum height=1.0cm] (e3) at (2.0,-0.5) {};
+            \node[draw, fill=red!40, minimum width=0.7cm, minimum height=0.6cm] (b) at (3.0,-0.7) {};
+            \node[draw, fill=green!55, minimum width=0.6cm, minimum height=1.0cm] (d3) at (4.0,-0.5) {};
+            \node[draw, fill=green!35, minimum width=0.6cm, minimum height=1.5cm] (d2) at (5.0,-0.25) {};
+            \node[draw, fill=green!20, minimum width=0.6cm, minimum height=2.0cm] (d1) at (6.0,0) {};
+
+            \foreach \a/\b in {e1/e2, e2/e3, e3/b, b/d3, d3/d2, d2/d1}
+                \draw[->] (\a.east) -- (\b.west);
+            \draw[->, dashed, red] (e1.east) to[bend left=20] node[above, font=\tiny] {skip} (d1.west);
+            \draw[->, dashed, red] (e2.east) to[bend left=15] (d2.west);
+            \draw[->, dashed, red] (e3.east) to[bend left=10] (d3.west);
+
+            \node[below=0.1cm of e1] {input};
+            \node[below=0.1cm of d1, yshift=-0.1cm] {segmentation};
+        \end{tikzpicture}
+    \end{center}
+    U-Net is a $3{\times}3$ convolution, ReLU, batch or group normalisation, $2{\times}2$ max-pool or strided convolution in the encoder, bilinear or transposed convolution upsampling in the decoder, and concatenation skip paths. Extensions include 3-D U-Net for volumetric data, attention U-Net, nnU-Net, and UNETR with a transformer encoder.
 \end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
-    \includegraphics[height=6cm]{img/activation.png}
+\begin{frame}{Segmentation Loss Functions}
+    Class imbalance is the rule in medical imaging because lesions or organs of interest occupy a small fraction of the volume. Pixel-wise cross-entropy is easily dominated by background, so overlap-based losses are preferred.
+
+    The soft Dice loss for a predicted probability map $p$ and a binary mask $g$ is
+    \begin{equation*}
+        \mathcal{L}_\mathrm{Dice} = 1 - \frac{2\sum_i p_i g_i + \epsilon}{\sum_i p_i + \sum_i g_i + \epsilon}\,.
+    \end{equation*}
+    A combined loss $\mathcal{L} = \mathcal{L}_\mathrm{Dice} + \mathcal{L}_\mathrm{CE}$ is a robust default. For highly imbalanced problems the Tversky and focal losses reweight false negatives or hard examples.
 \end{frame}
 
+\begin{frame}{Transposed Convolution and Upsampling}
+    The decoder restores resolution either by nearest neighbour or bilinear interpolation followed by a standard convolution, or by transposed convolution. Transposed convolution is equivalent to inserting zeros between input samples and applying a normal convolution, producing a learned upsampling operator.
+    \begin{center}
+        \begin{tikzpicture}[every node/.style={font=\footnotesize}]
+            \matrix (a) [matrix of nodes, nodes={draw, minimum size=0.45cm, inner sep=0}, ampersand replacement=\&] {
+                |[fill=faublue!30]|a \& |[fill=faublue!30]|b \\
+                |[fill=faublue!30]|c \& |[fill=faublue!30]|d \\
+            };
+            \node[right=0.3cm of a] {$\rightarrow$};
+            \matrix (b) [right=0.9cm of a, matrix of nodes, nodes={draw, minimum size=0.45cm, inner sep=0}, ampersand replacement=\&] {
+                |[fill=faublue!30]|a \& 0 \& |[fill=faublue!30]|b \& 0 \\
+                0 \& 0 \& 0 \& 0 \\
+                |[fill=faublue!30]|c \& 0 \& |[fill=faublue!30]|d \& 0 \\
+                0 \& 0 \& 0 \& 0 \\
+            };
+            \node[right=0.3cm of b] {$\ast K$};
+        \end{tikzpicture}
+    \end{center}
+    Transposed convolutions can introduce checkerboard artefacts. Resize-then-convolve approaches, used for example in nnU-Net, are often more stable in medical imaging where sharp quantitative boundaries matter.
+\end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
+\begin{frame}{Attention Mechanisms and Transformers}
+    Self-attention computes pairwise affinities between tokens and aggregates features accordingly,
+    \begin{equation*}
+        \mathrm{Attn}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V\,.
+    \end{equation*}
+    Vision transformers (ViT) tokenise an image into patches, linearly embed them, and apply stacks of multi-head self-attention blocks. Hybrid networks such as Swin-UNETR combine a windowed transformer encoder with a convolutional decoder and are competitive for 3-D segmentation.
+
+    Attention modules are also widely used as add-ons to convolutional networks, either spatial (attention gates in U-Net) or channel-wise (squeeze-and-excitation).
+\end{frame}
+
+\begin{frame}{Training Protocol for Medical Imaging}
+    A rigorous protocol avoids optimistic bias. The dataset is split at the patient level, never at the slice or volume level, to prevent leakage. Stratification by site, scanner, and class balance is standard. Cross-validation, typically five-fold, is used during model development, and a held-out test set is reserved for final reporting.
+    \begin{center}
+        \begin{tikzpicture}[every node/.style={font=\footnotesize}]
+            \draw[fill=faublue!20] (0,0) rectangle (6,0.6);
+            \node at (3, 0.3) {all subjects};
+            \draw[fill=faublue!30] (0,-0.9) rectangle (4,-0.3);
+            \node at (2,-0.6) {training and validation (cross-validation)};
+            \draw[fill=red!30] (4,-0.9) rectangle (6,-0.3);
+            \node at (5,-0.6) {held-out test};
+        \end{tikzpicture}
+    \end{center}
+    External validation on data from other institutions is the gold standard for any claim of clinical usefulness. Reporting should include confidence intervals and per-centre performance.
+\end{frame}
+
+\begin{frame}{Data Augmentation for Medical Imaging}
+    Deep networks generalise only along directions covered by the training distribution. Augmentation enlarges that distribution in a controlled way:
     \begin{itemize}
-        \item \href{https://www.youtube.com/watch?v=81AvQQnpG4Q}{\texttt{Example 1}}
-        \end{itemize}
-        \begin{center}
-    \includegraphics[height=3cm]{img/brats-tumor-subregions.jpg}
-    \includegraphics[height=3cm]{img/cardiac.png}
-     \end{center}
+        \item Geometric: random affine, elastic deformation, anisotropic resampling, mirroring when anatomically plausible.
+        \item Intensity: gamma, brightness, contrast, Gaussian noise, bias field simulation.
+        \item Modality-specific: k-space undersampling and motion for MRI, photon starvation and beam hardening for CT, speckle noise for ultrasound.
+        \item Test-time augmentation and ensembling to stabilise predictions.
+    \end{itemize}
+    Implementations such as TorchIO, MONAI transforms, and nnU-Net provide validated pipelines.
 \end{frame}
 
+\begin{frame}{Evaluation Metrics}
+    Metrics must reflect the clinical question. For segmentation, the Dice similarity coefficient and the Jaccard index measure overlap,
+    \begin{equation*}
+        \mathrm{DSC}(A, B) = \frac{2|A \cap B|}{|A| + |B|}\,,\qquad \mathrm{IoU}(A, B) = \frac{|A \cap B|}{|A \cup B|}\,,
+    \end{equation*}
+    while the Hausdorff distance and the average surface distance quantify boundary errors. For classification and detection one reports sensitivity, specificity, area under the receiver operating characteristic curve (AUROC), area under the precision-recall curve, and calibration (expected calibration error, Brier score). Reporting a single metric without uncertainty is insufficient.
+\end{frame}
 
-\begin{frame}
-    \frametitle{Deep Learning}
+\begin{frame}{Transfer Learning and Self-supervised Pretraining}
+    Annotated medical datasets are typically small. Transfer learning reuses weights trained on natural images (ImageNet) or on large unlabeled medical corpora. Self-supervised pretext tasks include masked image modelling, contrastive learning (SimCLR, MoCo), and restoration tasks specific to medical imaging such as context restoration and rotation prediction.
+
+    Foundation models for medical imaging, for example MedSAM, RadDINO, and MI-Zero, provide general-purpose representations that are fine-tuned on small downstream datasets. This paradigm shifts compute budget from each task to a single pretraining run.
+\end{frame}
+
+\begin{frame}{nnU-Net: Self-configuring Segmentation Baseline}
+    nnU-Net is a standardised framework that derives all design choices (patch size, topology, normalisation, augmentation, training schedule) from dataset fingerprints. It removes most hyperparameter tuning and has won many segmentation challenges.
+    \begin{center}
+        \begin{tikzpicture}[every node/.style={font=\footnotesize}, node distance=0.4cm]
+            \node[faunode, minimum width=2.2cm] (a) {Dataset\\ fingerprint};
+            \node[faunode, right=of a, minimum width=2.2cm] (b) {Heuristic rules\\ (spacing, size, GPU)};
+            \node[faunode, right=of b, minimum width=2.2cm] (c) {Configured\\ U-Net pipeline};
+            \node[faunode, right=of c, minimum width=1.8cm] (d) {Trained\\ model};
+            \draw[fauarrow] (a) -- (b);
+            \draw[fauarrow] (b) -- (c);
+            \draw[fauarrow] (c) -- (d);
+        \end{tikzpicture}
+    \end{center}
+    It serves as a strong baseline that any new architecture should be compared against before claiming state-of-the-art results. Reference: \url{https://github.com/MIC-DKFZ/nnUNet}.
+\end{frame}
+
+\begin{frame}{Common Failure Modes}
+    Deep networks fail silently on distributions they have not seen. Typical failure modes include:
     \begin{itemize}
-        \item \href{https://www.youtube.com/watch?v=4V8V0jF0zFc}{\texttt{Example 2}}
-        \end{itemize}
-        \begin{center}
-    \includegraphics[height=4cm]{img/ultrasound.png}
-    \includegraphics[height=4cm]{img/fetal.png}
-     \end{center}
+        \item Shortcut learning, where the network exploits acquisition or site signatures rather than anatomy.
+        \item Domain shift between sites, scanners, protocols, and patient populations.
+        \item Class imbalance collapse, where the network predicts only the majority class.
+        \item Confident errors on out-of-distribution inputs, including artefacts and rare pathologies.
+    \end{itemize}
+    Mitigations include careful data curation, domain generalisation techniques, uncertainty estimation, and out-of-distribution detection, all of which are active research topics in the medical imaging community.
+\end{frame}
+
+\begin{frame}{Uncertainty Estimation}
+    Predictions in medical imaging should come with a measure of confidence. Common approaches are Monte Carlo dropout, deep ensembles (train several networks with different seeds), evidential deep learning, and conformal prediction.
+
+    Aleatoric uncertainty reflects noise inherent to the data (e.g. partial volume effects at tissue boundaries). Epistemic uncertainty reflects limits of the model or training data and shrinks with more annotations. Only epistemic uncertainty is reducible, and distinguishing both components informs whether to acquire more data or to revise the model.
+\end{frame}
+
+\begin{frame}{Deployment, Regulation and Reproducibility}
+    Translation from research code to clinical deployment involves monitoring for data drift, revalidation after software or hardware changes, integration into picture archiving and communication systems (PACS), and regulatory approval (CE mark, FDA clearance). Reproducibility requires version-controlled data splits, fixed random seeds, documented preprocessing, and release of trained weights and inference code.
+
+    Standards such as MONAI Deploy, DICOM-based inference endpoints, and HL7 FHIR AI reporting are emerging to make these steps routine rather than bespoke.
+\end{frame}
+
+\begin{frame}{Practical Workflow}
+    A deep learning project in medical imaging typically proceeds as follows:
+    \begin{enumerate}
+        \item Define the clinical question, the cohort, and the reference standard.
+        \item Curate and preprocess data, harmonise resolution and orientation, anonymise.
+        \item Split subjects into training, validation, and test sets at the patient level.
+        \item Choose a baseline (nnU-Net for segmentation, a ResNet or ViT for classification).
+        \item Train with strong augmentation and validated loss functions, monitor metrics.
+        \item Evaluate on internal and external test sets, report uncertainty and failure modes.
+        \item Iterate, and only after stable performance deploy with monitoring in place.
+    \end{enumerate}
+\end{frame}
+
+\begin{frame}{Summary of Deep Learning for Medical Imaging}
+    Convolutional and transformer-based networks turn image analysis into a representation-learning problem. Training combines a differentiable loss, backpropagation, and careful regularisation. The U-Net family remains the workhorse for segmentation, with nnU-Net as the standard baseline. Rigorous evaluation, domain-aware augmentation, uncertainty quantification, and reproducibility discipline are as important as architectural choices. The next lectures build on these tools for specific modalities and clinical tasks.
+\end{frame}
+
+\begin{frame}{Classical Deep Learning Pictures}
+    \begin{center}
+        \includegraphics[height=4.5cm]{img/AI-Medical-600px.png}\\[0.2em]
+        {\tiny Image credit Ben Glocker}
+    \end{center}
+\end{frame}
+
+\begin{frame}{U-Net (Ronneberger et al., 2015)}
+    \begin{center}
+        \includegraphics[height=5.5cm]{img/u-net-architecture.png}\\
+        {\tiny Image credit O. Ronneberger et al., U-Net: Convolutional Networks for Biomedical Image Segmentation, MICCAI 2015}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Medical Imaging Application Examples}
+    \begin{center}
+        \includegraphics[height=3cm]{img/brats-tumor-subregions.jpg}\hfill
+        \includegraphics[height=3cm]{img/cardiac.png}\\[0.3em]
+        \includegraphics[height=3cm]{img/ultrasound.png}\hfill
+        \includegraphics[height=3cm]{img/fetal.png}
+    \end{center}
+    Brain tumour segmentation (BraTS), cardiac segmentation, ultrasound plane detection, and fetal analysis all share the same pipeline: data curation, strong baseline, rigorous validation.
 \end{frame}
 
 

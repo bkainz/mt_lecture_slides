@@ -1054,6 +1054,106 @@
 \end{frame}
 
 
+\begin{frame}{Mobile Ultrasound \cont}
+
+\structure{Point of care ultrasound (POCUS): Examples (among many others).}
+
+\begin{figure}[H]
+    \centering
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/butterfly_.png}
+        \caption*{\textbf{Butterfly iQ}\\ \tiny{\url{https://www.butterflynetwork.com/}}}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.45\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/lumify_.png}
+        \caption*{\textbf{Philips Lumify}\\ \tiny{\url{https://www.philips.de/healthcare/sites/lumify-handheld-ultrasound}}}
+    \end{minipage}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{What is Beamforming?}
+
+\structure{Beamforming is a signal processing technique used to direct the sensitivity of a sensor array.}
+
+\vspace{1em}
+
+\begin{itemize}
+    \item Used in radar, sonar, wireless communications — and ultrasound.
+    \item Combines signals from multiple receivers to enhance signal from a specific direction.
+    \item Improves spatial resolution and signal-to-noise ratio.
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Why Beamforming in Ultrasound?}
+
+\structure{To reconstruct spatially coherent images from echo signals recorded by a transducer array.}
+
+\vspace{1em}
+
+\begin{itemize}
+    \item Allows focusing the ultrasound beam at a specific depth.
+    \item Enhances contrast and resolution in the image.
+    \item Enables dynamic focusing during receive (receive beamforming).
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Delay-and-Sum Beamforming}
+
+\structure{Most common beamforming method in ultrasound systems.}
+
+\vspace{1em}
+
+\begin{itemize}
+    \item Apply time delays to align echoes from a specific point in space.
+    \item Sum the delayed signals to amplify signals from the target direction.
+    \item Simple, robust, and used in real-time imaging.
+\end{itemize}
+
+\vspace{1em}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.4\textwidth]{images/das_diagram.png}
+    \caption*{\tiny Illustration: Delay-and-Sum beamforming geometry – \url{https://www.researchgate.net/profile/William-Fonseca-4/publication/280882621}}
+\end{figure}
+\end{frame}
+
+
+
+\begin{frame}{Beamforming Preview}
+
+\structure{Same principle across all multi-receiver systems}
+
+\vspace{1em}
+
+\begin{itemize}
+    \item \href{https://youtu.be/A1n5Hhwtz78}{Beamforming in radio arrays example (https://youtu.be/A1n5Hhwtz78)}
+    \item More details will be covered in focused courses
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}{Beamforming: Challenges and Advances}
+
+\structure{Basic delay-and-sum beamforming has limitations — advanced methods exist.}
+
+\vspace{1em}
+
+\begin{itemize}
+    \item Limited resolution due to fixed aperture size.
+    \item Susceptible to noise and side-lobes.
+    \item Adaptive beamforming (e.g., Minimum Variance, Delay-Multiply-and-Sum) can improve quality.
+\end{itemize}
+
+\end{frame}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Safety in US Imaging}
